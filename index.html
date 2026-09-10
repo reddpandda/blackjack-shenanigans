@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>True Count Drill</title>
+<style>
+  :root {
+    --bg: #12151b;
+    --panel: #191d25;
+    --key: #1f2430;
+    --key-hover: #2a3140;
+    --line: #262c37;
+    --text: #e9ebef;
+    --muted: #7c8394;
+    --amber: #e0a238;
+    --amber-dim: #6b551f;
+    --good: #5fb88a;
+    --bad: #d3565a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  }
+  @font-face { font-family: 'IBM Plex Mono'; src: local('IBM Plex Mono'); }
+  .wrap {
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 20px 32px;
+  }
+
+  .statline {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .statline span b {
+    color: var(--text);
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .board {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 0 18px;
+  }
+
+  .readout { display: flex; gap: 44px; align-items: baseline; }
+  .readout-item { text-align: center; }
+  .readout-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .readout-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: 52px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .rc-value { color: var(--amber); }
+  .decks-value { color: var(--text); }
+
+  .prompt { font-size: 14px; color: var(--muted); }
+
+  .display {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 10px;
+    min-height: 66px;
+    transition: border-color 120ms ease;
+  }
+  .display.correct { border-color: var(--good); }
+  .display.wrong { border-color: var(--bad); }
+  .display .sign { color: var(--amber); }
+  .display .digits { color: var(--text); }
+  .display .placeholder { color: var(--muted); font-weight: 400; }
+
+  .feedback { min-height: 20px; font-size: 13px; font-weight: 600; }
+  .feedback.good { color: var(--good); }
+  .feedback.bad { color: var(--bad); }
+
+  .autocheck-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: var(--key);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 140ms ease, background 140ms ease;
+  }
+  .toggle.on { background: var(--amber-dim); border-color: var(--amber-dim); }
+  .toggle.on .knob { transform: translateX(18px); background: var(--amber); }
+
+  .pad {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .pad button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    background: var(--key);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .pad button:hover { background: var(--key-hover); }
+  .pad button:active { filter: brightness(1.15); }
+
+  .neg-btn {
+    grid-column: span 3;
+    font-family: 'IBM Plex Sans', sans-serif !important;
+    font-size: 14px !important;
+    letter-spacing: 0.03em;
+    background: var(--key);
+    color: var(--muted) !important;
+    border: 1px solid var(--line);
+  }
+  .neg-btn.active {
+    background: var(--amber-dim);
+    color: var(--amber) !important;
+    border-color: var(--amber-dim);
+  }
+
+  .clear-btn { color: var(--muted); font-size: 18px !important; }
+
+  .enter-btn {
+    font-family: 'IBM Plex Sans', sans-serif !important;
+    font-size: 15px !important;
+    background: var(--amber);
+    color: #1a1406 !important;
+    border: none !important;
+  }
+  .enter-btn:hover { filter: brightness(1.08); }
+  .enter-btn.dimmed { opacity: 0.4; }
+
+  .footer { display: flex; justify-content: center; padding-top: 20px; }
+  #reset {
+    background: none; border: none; color: var(--muted);
+    font-size: 13px; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  #reset:hover { color: var(--text); }
+
+  .hint { font-size: 11px; color: var(--muted); text-align: center; padding-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="statline">
+    <span>streak <b id="streak">0</b></span>
+    <span>best <b id="best">0</b></span>
+    <span>accuracy <b id="accuracy">—</b></span>
+    <span>avg time <b id="avgtime">—</b></span>
+  </div>
+
+  <div class="board">
+    <div class="readout">
+      <div class="readout-item">
+        <div class="readout-label">running count</div>
+        <div class="readout-value rc-value" id="rc">—</div>
+      </div>
+      <div class="readout-item">
+        <div class="readout-label">decks remaining</div>
+        <div class="readout-value decks-value" id="decks">—</div>
+      </div>
+    </div>
+
+    <div class="prompt">What's the true count?</div>
+
+    <div class="display" id="display"><span class="placeholder">0</span></div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="autocheck-row">
+      <div class="toggle" id="autoToggle"><div class="knob"></div></div>
+      <span id="autoLabel">Auto-check off — press Enter to check</span>
+    </div>
+
+    <div class="pad">
+      <button class="neg-btn" id="negBtn">− negative</button>
+      <div style="grid-column: span 3; display:contents;">
+        <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+        <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+        <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+        <button class="clear-btn" id="clearBtn">⌫</button><button data-d="0">0</button><button class="enter-btn" id="enterBtn">Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button id="reset">reset stats</button>
+  </div>
+  <div class="hint">true count = running count ÷ decks remaining, truncated toward zero (drop the decimal, don't round it)</div>
+
+</div>
+
+<script>
+  const rcEl = document.getElementById('rc');
+  const decksEl = document.getElementById('decks');
+  const displayEl = document.getElementById('display');
+  const negBtn = document.getElementById('negBtn');
+  const enterBtn = document.getElementById('enterBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const feedbackEl = document.getElementById('feedback');
+  const streakEl = document.getElementById('streak');
+  const bestEl = document.getElementById('best');
+  const accuracyEl = document.getElementById('accuracy');
+  const avgtimeEl = document.getElementById('avgtime');
+  const resetEl = document.getElementById('reset');
+  const padButtons = document.querySelectorAll('.pad button[data-d]');
+  const autoToggle = document.getElementById('autoToggle');
+  const autoLabel = document.getElementById('autoLabel');
+
+  const AUTO_CHECK_DELAY_MS = 700;
+
+  let state = {
+    rc: 0,
+    decks: 1,
+    correctAnswer: 0,
+    digits: '',
+    isNegative: false,
+    streak: 0,
+    best: 0,
+    totalAttempts: 0,
+    totalCorrect: 0,
+    totalTimeMs: 0,
+    questionStart: 0,
+    awaitingNext: false,
+    autoCheck: false,
+    autoTimer: null
+  };
+
+  const DECK_OPTIONS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0];
+
+  function renderDisplay() {
+    displayEl.classList.remove('correct', 'wrong');
+    if (state.digits === '') {
+      displayEl.innerHTML = state.isNegative
+        ? '<span class="sign">−</span><span class="placeholder">0</span>'
+        : '<span class="placeholder">0</span>';
+    } else {
+      displayEl.innerHTML = (state.isNegative ? '<span class="sign">−</span>' : '')
+        + '<span class="digits">' + state.digits + '</span>';
+    }
+  }
+
+  function updateEnterButtonState() {
+    enterBtn.classList.toggle('dimmed', state.autoCheck && !state.awaitingNext);
+  }
+
+  function newQuestion() {
+    state.decks = DECK_OPTIONS[Math.floor(Math.random() * DECK_OPTIONS.length)];
+    const magnitude = Math.floor(Math.random() * 18) - 9;
+    state.rc = magnitude;
+    const exactTC = state.rc / state.decks;
+    state.correctAnswer = Math.trunc(exactTC);
+
+    rcEl.textContent = (state.rc > 0 ? '+' : '') + state.rc;
+    decksEl.textContent = state.decks.toFixed(1);
+
+    state.digits = '';
+    state.isNegative = false;
+    negBtn.classList.remove('active');
+    renderDisplay();
+
+    feedbackEl.textContent = '';
+    feedbackEl.className = 'feedback';
+    state.questionStart = performance.now();
+    state.awaitingNext = false;
+    clearAutoTimer();
+    updateEnterButtonState();
+  }
+
+  function currentValue() {
+    if (state.digits === '') return null;
+    const n = parseInt(state.digits, 10);
+    return state.isNegative ? -n : n;
+  }
+
+  function clearAutoTimer() {
+    if (state.autoTimer) {
+      clearTimeout(state.autoTimer);
+      state.autoTimer = null;
+    }
+  }
+
+  function scheduleAutoCheck() {
+    clearAutoTimer();
+    if (!state.autoCheck || state.awaitingNext) return;
+    if (state.digits === '') return;
+    state.autoTimer = setTimeout(() => {
+      submitAnswer();
+    }, AUTO_CHECK_DELAY_MS);
+  }
+
+  function submitAnswer() {
+    clearAutoTimer();
+    if (state.awaitingNext) {
+      newQuestion();
+      return;
+    }
+    const userAnswer = currentValue();
+    if (userAnswer === null) return;
+
+    const elapsed = performance.now() - state.questionStart;
+    state.totalAttempts++;
+    state.totalTimeMs += elapsed;
+
+    if (userAnswer === state.correctAnswer) {
+      state.totalCorrect++;
+      state.streak++;
+      state.best = Math.max(state.best, state.streak);
+      displayEl.classList.add('correct');
+      feedbackEl.textContent = `Correct — ${(elapsed/1000).toFixed(1)}s`;
+      feedbackEl.className = 'feedback good';
+    } else {
+      state.streak = 0;
+      displayEl.classList.add('wrong');
+      feedbackEl.textContent = `Off — true count was ${state.correctAnswer > 0 ? '+' : ''}${state.correctAnswer}`;
+      feedbackEl.className = 'feedback bad';
+    }
+
+    updateStats();
+    state.awaitingNext = true;
+    updateEnterButtonState();
+  }
+
+  function updateStats() {
+    streakEl.textContent = state.streak;
+    bestEl.textContent = state.best;
+    accuracyEl.textContent = state.totalAttempts
+      ? Math.round((state.totalCorrect / state.totalAttempts) * 100) + '%'
+      : '—';
+    avgtimeEl.textContent = state.totalAttempts
+      ? (state.totalTimeMs / state.totalAttempts / 1000).toFixed(1) + 's'
+      : '—';
+  }
+
+  function resetStats() {
+    state.streak = 0;
+    state.best = 0;
+    state.totalAttempts = 0;
+    state.totalCorrect = 0;
+    state.totalTimeMs = 0;
+    updateStats();
+    newQuestion();
+  }
+
+  padButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (state.awaitingNext) { newQuestion(); return; }
+      if (state.digits.length >= 2) return;
+      const d = btn.getAttribute('data-d');
+      state.digits = state.digits === '0' ? d : state.digits + d;
+      renderDisplay();
+      scheduleAutoCheck();
+    });
+  });
+
+  negBtn.addEventListener('click', () => {
+    if (state.awaitingNext) return;
+    state.isNegative = !state.isNegative;
+    negBtn.classList.toggle('active', state.isNegative);
+    renderDisplay();
+    scheduleAutoCheck();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (state.awaitingNext) return;
+    state.digits = state.digits.slice(0, -1);
+    renderDisplay();
+    clearAutoTimer();
+  });
+
+  enterBtn.addEventListener('click', submitAnswer);
+  resetEl.addEventListener('click', resetStats);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitAnswer();
+  });
+
+  autoToggle.addEventListener('click', () => {
+    state.autoCheck = !state.autoCheck;
+    autoToggle.classList.toggle('on', state.autoCheck);
+    autoLabel.textContent = state.autoCheck
+      ? 'Auto-check on — checks shortly after you stop entering'
+      : 'Auto-check off — press Enter to check';
+    updateEnterButtonState();
+    clearAutoTimer();
+  });
+
+  newQuestion();
+</script>
+</body>
+</html>
